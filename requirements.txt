@@ -1,0 +1,7 @@
+mypy
+flake8
+numpy
+opencv-python
+pillow
+pylint
+autopep8
