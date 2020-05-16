@@ -1,10 +1,12 @@
+from typing import Generator
+import numpy as np
 import logging
 from copy import copy
 from pathlib import Path
 from typing import Iterable, Iterator, List, Union
 
 import coloredlogs
-from PIL import Image
+import cv2
 
 from config import VALID_FORMATS
 
@@ -31,19 +33,17 @@ def iterate_all_image_paths(directory: Union[Path, str]) -> Iterator:
     return iter(image_paths)
 
 
-def load_images_from_paths(paths: Iterable) -> Iterator[Image.Image]:
-    """ Loads PIL images from a list of `pathlib` paths. """
+def load_images_from_paths(paths: Iterable) -> Generator[np.ndarray, None, None]:
+    """ Loads CV2 images from a list of `pathlib` paths. """
     paths = copy(paths)
-    images: List[Image.Image] = []
     for image_path in paths:
-        image = Image.open(image_path)
         try:
-            images.append(image)
+            image = cv2.imread(str(image_path))
+            logger.debug(f"Loaded image: {image_path}.")
+            yield image
         except OSError:
             logger.warning(f"Image failed to load: {image_path}.")
             continue
-        logger.debug(f"Load image {image_path}.")
-    return iter(images)
 
 
 def save_images_with_name(images: Iterable,
@@ -53,10 +53,10 @@ def save_images_with_name(images: Iterable,
     specified directory.
     """
     path: Path
-    image: Image.Image
+    image: np.ndarray
     for image, path in zip(images, paths):
-        fp = directory / path.name
-        image.save(fp.absolute())
+        new_path = str(directory / path.name)
+        cv2.imwrite(new_path, image)
         logger.debug(f"Saved '{path.name}' with size {image.size}.")
 
     logger.info(f"Saved images to '{directory.absolute()}'.")

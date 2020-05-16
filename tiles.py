@@ -3,12 +3,12 @@ in the mosaic. The primary controlling factors are the pixel resolution
 and the image directory. """
 
 import logging
-from copy import copy
 from pathlib import Path
-from typing import Iterable, Iterator, List, Tuple
+from typing import Generator, Iterable, Tuple
 
 import coloredlogs
-from PIL import Image, ImageOps
+import cv2
+import numpy as np
 
 from config import PIXEL_RES
 from utils import (is_even, iterate_all_image_paths, load_images_from_paths,
@@ -30,7 +30,7 @@ def prepare_images(image_dir: Path, cropped_image_dir: Path) -> None:
     cropped_images = crop_images_to_square(images=images)
 
     # Resize each cropped image into the specified dimensions.
-    cropped_images = (image.resize((PIXEL_RES, PIXEL_RES))
+    cropped_images = (cv2.resize(image, (PIXEL_RES, PIXEL_RES))
                       for image in cropped_images)
 
     # Save each cropped image to the prepared images directory with the original name.
@@ -39,46 +39,55 @@ def prepare_images(image_dir: Path, cropped_image_dir: Path) -> None:
                           directory=cropped_image_dir)
 
 
-def crop_images_to_square(images: Iterable[Image.Image]) -> Iterator[Image.Image]:
+def crop_images_to_square(images: Iterable[np.ndarray]) -> Generator[np.ndarray, None, None]:
     """ Given an iterable of images, crop each image to a square. """
-    cropped_images: List[Image.Image] = []
-    for image in copy(images):
-        try:
-            cropped_image = crop_to_square(image)
-            cropped_images.append(cropped_image)
-            logger.debug(f"Cropped {image.fp=} to {cropped_image.size}.")
-        except Exception as e:
-            logger.error(f"Crop images to square error on image.")
-    return iter(cropped_images)
+    count = 0
+    for image in images:
+        count += 1
+        cropped_image = crop_to_square(image)
+        logger.debug(f"Cropped image {count} to {cropped_image.shape}.")
+        yield cropped_image
 
 
-def crop_to_square(image: Image.Image) -> Image.Image:
-    """ Crops PIL images to a square, chopping off edges larger than the minimum. """
-    size: Tuple[int, int] = image.size
-    border = _determine_square_crop_border(size=size)
-    try:
-        cropped_image = ImageOps.crop(image, border)
-    except OSError:
-        logger.error(f"Broken data stream when reading image file {image.fp}.")
-        raise OSError
+def crop_to_square(image: np.ndarray) -> np.ndarray:
+    """ Crops cv2 (numpy) images to a square, chopping off edges larger
+     than the minimum.
+     """
+    shape: Tuple[int, int, int] = image.shape
+    border = _determine_square_crop_border_indices(shape=shape)
+    cropped_image = image[
+        border["top"]:border["bottom"],
+        border["left"]:border["right"]
+    ]
 
     return cropped_image
 
 
-def _determine_square_crop_border(size: Tuple[int, int]) -> Tuple[int, int, int, int]:
-    """ Given a tuple of the (x, y) dimensions of an image, determine the crop border
-       from each edge necessary to properly crop the image into a square. """
-    min_length = min(size)
-    width, height = size
+def _determine_square_crop_border_indices(shape: Tuple[int, int, int]) -> dict:
+    """ Given a tuple of the (x, y) dimensions of an image, determine the crop
+        indices for the numpy array as a dict. """
+    min_length = min(shape)
+    height, width, _ = shape
     chopoff_count = int(abs(height - width) / 2)
+    indices = {
+        "left": 0,
+        "right": width,
+        "top": 0,
+        "bottom": height,
+    }
     if width == min_length:
-        if is_even(height - width):
-            border = (0, chopoff_count, 0, chopoff_count)
-        else:
-            border = (0, chopoff_count, 0, chopoff_count + 1)
+        # ? Chop off the height
+        indices["left"] = 0
+        indices["right"] = width
+        indices["top"] = chopoff_count
+        indices["bottom"] = height - chopoff_count
+        if not is_even(height - width):
+            indices["bottom"] += 1
     else:
-        if is_even(height - width):
-            border = (chopoff_count, 0, chopoff_count, 0)
-        else:
-            border = (chopoff_count, 0, chopoff_count + 1, 0)
-    return border
+        indices["left"] = chopoff_count
+        indices["right"] = width - chopoff_count
+        indices["top"] = 0
+        indices["bottom"] = height
+        if not is_even(height - width):
+            indices["right"] += 1
+    return indices

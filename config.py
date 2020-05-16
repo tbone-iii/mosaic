@@ -10,3 +10,6 @@ VALID_FORMATS = [
     ".jpg",
     ".tif",
 ]
+
+TARGET_IMAGE_NAME = "original.png"
+MOSAIC_IMAGE_NAME = "mosaic.png"
