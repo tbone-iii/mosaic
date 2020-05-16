@@ -1,3 +1,4 @@
+from config import SCALE_FACTOR
 import logging
 from collections import Counter
 from math import inf
@@ -104,7 +105,7 @@ def prepare_target_image(path: Path) -> np.ndarray:
     image = crop_to_square(image)
     logger.debug("Cropped target image to a square.")
     # Resize the image down to the multiple (GCM) of PIXEL_RES
-    new_length = PIXEL_RES * (image.shape[0] // PIXEL_RES)
+    new_length = PIXEL_RES * (image.shape[0] // PIXEL_RES) * SCALE_FACTOR
     image = cv2.resize(image, (new_length, new_length))
     logger.debug(f"Resized image to square of {new_length=}, a multiple of {PIXEL_RES=}.")
     return image

@@ -1,8 +1,8 @@
 # Set resized image pixel resolution (length of sq of small images in mosiac)
-PIXEL_RES = 10        # pixels
+PIXEL_RES = 50        # pixels
 
 # Number of dominant colors to find using K-Means clustering
-CLUSTER_QUANTITY = 2
+CLUSTER_QUANTITY = 1
 
 # Valid image formats to include in processing
 VALID_FORMATS = [
@@ -13,3 +13,7 @@ VALID_FORMATS = [
 
 TARGET_IMAGE_NAME = "original.png"
 MOSAIC_IMAGE_NAME = "mosaic.png"
+
+
+# Target image scale factor
+SCALE_FACTOR: int = 5

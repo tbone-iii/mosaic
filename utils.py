@@ -57,7 +57,7 @@ def save_images_with_name(images: Iterable,
     for image, path in zip(images, paths):
         new_path = str(directory / path.name)
         cv2.imwrite(new_path, image)
-        logger.debug(f"Saved '{path.name}' with size {image.size}.")
+        logger.debug(f"Saved '{path.name}' with shape {image.shape}.")
 
     logger.info(f"Saved images to '{directory.absolute()}'.")
 
