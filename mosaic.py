@@ -171,7 +171,7 @@ def process_images_for_mosaic(cropped_image_dir: Path, target_image_dir: Path):
             )
 
     delta_time = time.perf_counter() - t1
-    with open("text.txt", mode="w+") as f:
+    with open("times.txt", mode="a") as f:
         f.write(str(delta_time))
 
     logger.info(f"{delta_time} seconds to run image generation.")
