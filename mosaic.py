@@ -1,3 +1,4 @@
+import time
 from config import SCALE_FACTOR
 import logging
 from collections import Counter
@@ -10,13 +11,12 @@ import cv2
 import numpy as np
 
 from config import (CLUSTER_QUANTITY, MOSAIC_IMAGE_NAME, PIXEL_RES,
-                    TARGET_IMAGE_NAME)
+                    TARGET_IMAGE_NAME, LOGGING_MODE)
 from tiles import crop_to_square, prepare_images
 from utils import iterate_all_image_paths
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-coloredlogs.install(level="DEBUG", logger=logger)
+coloredlogs.install(level=LOGGING_MODE, logger=logger)
 
 Vector = Union[Tuple, List]
 
@@ -130,6 +130,8 @@ def process_images_for_mosaic(cropped_image_dir: Path, target_image_dir: Path):
 
     # TODO: THis can be vectorized/parllelized
     new_image = target_image.copy()
+
+    t1 = time.perf_counter()
     for pixel_y in pixels:
         for pixel_x in pixels:
             # make an image out of the first square
@@ -158,6 +160,8 @@ def process_images_for_mosaic(cropped_image_dir: Path, target_image_dir: Path):
                 f"Added subimage '{closest_image_path}' at ({pixel_x}, {pixel_y})"
             )
 
+    delta_time = time.perf_counter() - t1
+    logger.info(f"{delta_time} seconds to run image generation.")
     logger.info(f"Image finished!")
     return new_image
 
@@ -175,6 +179,7 @@ def main():
                                              target_image_dir=target_image_dir)
 
     cv2.imwrite(MOSAIC_IMAGE_NAME, mosaic_image)
+    cv2.imshow(MOSAIC_IMAGE_NAME, mosaic_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 

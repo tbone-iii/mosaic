@@ -8,11 +8,10 @@ from typing import Iterable, Iterator, List, Union
 import coloredlogs
 import cv2
 
-from config import VALID_FORMATS
+from config import VALID_FORMATS, LOGGING_MODE
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-coloredlogs.install(level="DEBUG", logger=logger)
+coloredlogs.install(level=LOGGING_MODE, logger=logger)
 
 
 # Gather all images in a directory.

@@ -1,3 +1,5 @@
+import logging
+
 # Set resized image pixel resolution (length of sq of small images in mosiac)
 PIXEL_RES = 50        # pixels
 
@@ -16,4 +18,7 @@ MOSAIC_IMAGE_NAME = "mosaic.png"
 
 
 # Target image scale factor
-SCALE_FACTOR: int = 5
+SCALE_FACTOR: int = 2
+
+
+LOGGING_MODE = "INFO"

@@ -12,11 +12,10 @@ import numpy as np
 
 from config import PIXEL_RES
 from utils import (is_even, iterate_all_image_paths, load_images_from_paths,
-                   save_images_with_name)
+                   save_images_with_name, LOGGING_MODE)
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-coloredlogs.install(level="DEBUG", logger=logger)
+coloredlogs.install(level=LOGGING_MODE, logger=logger)
 
 
 def prepare_images(image_dir: Path, cropped_image_dir: Path) -> None:
