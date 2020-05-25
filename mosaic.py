@@ -148,27 +148,33 @@ def process_images_for_mosaic(cropped_image_dir: Path, target_image_dir: Path):
     new_image = target_image.copy()
 
     t1 = time.perf_counter()
+
+    # ? Determine slices
+    slices = []
     for pixel_y in pixels:
         for pixel_x in pixels:
-            # make an image out of the first square
-            sub_image = target_image[
+            sliced = np.s_[
                 pixel_y:pixel_y + PIXEL_RES,
-                pixel_x:pixel_x + PIXEL_RES,
+                pixel_x:pixel_x + PIXEL_RES
             ]
+            slices.append(sliced)
 
-            dominant_sub_color = find_dominant_color_from_image(image=sub_image)
+    for sliced in slices:
+        # make an image out of the first square
+        sub_image = target_image[sliced]
 
-            # Find in the set the closest color value to the averaged color chunk.
-            closest_image_path = get_closest_image_path(
-                dominant_sub_color, DOMINANT_COLORS)
+        dominant_sub_color = find_dominant_color_from_image(image=sub_image)
 
-            # Place the image at the location, resized appropriately to some grid.
-            new_sub_image = cv2.imread(str(closest_image_path))
-            new_image[pixel_y:pixel_y + PIXEL_RES,
-                      pixel_x:pixel_x + PIXEL_RES] = new_sub_image
-            logger.debug(
-                f"Added subimage '{closest_image_path}' at ({pixel_x}, {pixel_y})"
-            )
+        # Find in the set the closest color value to the averaged color chunk.
+        closest_image_path = get_closest_image_path(
+            dominant_sub_color, DOMINANT_COLORS)
+
+        # Place the image at the location, resized appropriately to some grid.
+        new_sub_image = cv2.imread(str(closest_image_path))
+        new_image[sliced] = new_sub_image
+        logger.debug(
+            f"Added subimage '{closest_image_path}' at ({pixel_x}, {pixel_y})"
+        )
 
     delta_time = time.perf_counter() - t1
     with open("times.txt", mode="a") as f:
