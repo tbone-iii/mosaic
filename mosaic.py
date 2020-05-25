@@ -74,7 +74,7 @@ def find_dominant_color_from_image(image: np.ndarray) -> tuple:
 
 def norm(vector: Vector) -> Union[float, int]:
     """ Calculates the norm of the given vector. """
-    return sum(map(lambda x: x**2, vector))
+    return sum(map(lambda x: x**2, vector)) ** 0.5
 
 
 def vector_diff(a: Vector, b: Vector) -> Vector:
@@ -111,6 +111,23 @@ def prepare_target_image(path: Path) -> np.ndarray:
     return image
 
 
+def get_closest_image_path(dominant_color: tuple, dominant_colors) -> Path:
+    """ Given the dominant color of an image, find the closest color in the
+    collection of dominant colors.
+
+    Returns the path to the image as a `Path` type from the `pathlib` module.
+    """
+    min_diff = inf
+    closest_image_path: Path
+    for path, new_dominant_color in dominant_colors.items():
+        color_diff = vector_diff(dominant_color, new_dominant_color)
+        diff = norm(color_diff)
+        if diff < min_diff:
+            min_diff = diff
+            closest_image_path = path
+    return closest_image_path
+
+
 def process_images_for_mosaic(cropped_image_dir: Path, target_image_dir: Path):
     # Get the dominant colors mapping for each immage
     prepared_image_paths = iterate_all_image_paths(cropped_image_dir)
@@ -128,7 +145,6 @@ def process_images_for_mosaic(cropped_image_dir: Path, target_image_dir: Path):
     n = target_image.shape[0] // PIXEL_RES
     pixels = range(0, n * PIXEL_RES, PIXEL_RES)
 
-    # TODO: THis can be vectorized/parllelized
     new_image = target_image.copy()
 
     t1 = time.perf_counter()
@@ -143,14 +159,8 @@ def process_images_for_mosaic(cropped_image_dir: Path, target_image_dir: Path):
             dominant_sub_color = find_dominant_color_from_image(image=sub_image)
 
             # Find in the set the closest color value to the averaged color chunk.
-            min_diff = inf
-            closest_image_path: Path
-            for path, dominant_color in DOMINANT_COLORS.items():
-                color_diff = vector_diff(dominant_color, dominant_sub_color)
-                diff = norm(color_diff)
-                if diff < min_diff:
-                    min_diff = diff
-                    closest_image_path = path
+            closest_image_path = get_closest_image_path(
+                dominant_sub_color, DOMINANT_COLORS)
 
             # Place the image at the location, resized appropriately to some grid.
             new_sub_image = cv2.imread(str(closest_image_path))
@@ -161,6 +171,9 @@ def process_images_for_mosaic(cropped_image_dir: Path, target_image_dir: Path):
             )
 
     delta_time = time.perf_counter() - t1
+    with open("text.txt", mode="w+") as f:
+        f.write(str(delta_time))
+
     logger.info(f"{delta_time} seconds to run image generation.")
     logger.info(f"Image finished!")
     return new_image
