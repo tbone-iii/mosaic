@@ -16,7 +16,6 @@ from config import (
     MOSAIC_IMAGE_NAME,
     PIXEL_RES,
     SCALE_FACTOR,
-    TARGET_IMAGE_NAME,
 )
 from tiles import crop_to_square, prepare_images
 from utils import iterate_all_image_paths
@@ -43,8 +42,13 @@ def color_clusters(image: np.ndarray, K: int = 5) -> Tuple[np.uint8, np.ndarray]
 
     # define criteria, number of clusters(K) and apply kmeans()
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    ret, labels, centers = cv2.kmeans(
-        temp_image, K, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS
+    _, labels, centers = cv2.kmeans(
+        temp_image,
+        K,
+        None,
+        criteria,
+        10,
+        cv2.KMEANS_RANDOM_CENTERS,
     )
     # Now convert back into uint8, and make original image
     centers = np.uint8(centers)
@@ -88,7 +92,7 @@ def image_to_dominant_colors_from_paths(paths: Iterable[Path]) -> Mapping[Path, 
         dominant_color: tuple = find_dominant_color_from_path(image_path)
         dominant_colors[image_path] = dominant_color
         logger.debug(
-            f"Added {dominant_color=} to dominant colors " f"in image '{image_path.name}'"
+            f"Added {dominant_color=} to dominant colors in image '{image_path.name}'"
         )
     return dominant_colors
 
@@ -124,24 +128,20 @@ def get_closest_image_path(dominant_color: tuple, dominant_colors) -> Path:
     return closest_image_path
 
 
-def process_images_for_mosaic(cropped_image_dir: Path, source_image_dir: Path):
+def create_mosaic(cropped_image_dir: Path, source_image_path: Path):
     # Get the dominant colors mapping for each immage
     prepared_image_paths = iterate_all_image_paths(cropped_image_dir)
-    DOMINANT_COLORS = image_to_dominant_colors_from_paths(prepared_image_paths)
+    image_to_dominant_color = image_to_dominant_colors_from_paths(prepared_image_paths)
 
     # Grab the first SOURCE image in the given image directory.
-    target_image_file = next(iterate_all_image_paths(source_image_dir))
-    target_image = prepare_target_image(path=target_image_file)
-    # Save the image
-    cv2.imwrite(TARGET_IMAGE_NAME, target_image)
-    logger.info(f"Saved image as '{TARGET_IMAGE_NAME}'")
+    source_image = prepare_target_image(path=source_image_path)
 
     # Going over chunks of an image (a specified grid), average out the color there
     # Determine pixel iteration and boundary.
-    n = target_image.shape[0] // PIXEL_RES
+    n = source_image.shape[0] // PIXEL_RES
     pixels = range(0, n * PIXEL_RES, PIXEL_RES)
 
-    new_image = target_image.copy()
+    new_image = source_image.copy()
 
     t1 = time.perf_counter()
 
@@ -156,12 +156,12 @@ def process_images_for_mosaic(cropped_image_dir: Path, source_image_dir: Path):
 
     for sliced in slices:
         # make an image out of the first square
-        sub_image = target_image[sliced]
+        sub_image = source_image[sliced]
 
         dominant_sub_color = find_dominant_color_from_image(image=sub_image)
-
-        # Find in the set the closest color value to the averaged color chunk.
-        closest_image_path = get_closest_image_path(dominant_sub_color, DOMINANT_COLORS)
+        closest_image_path = get_closest_image_path(
+            dominant_sub_color, image_to_dominant_color
+        )
 
         # Place the image at the location, resized appropriately to some grid.
         new_sub_image = cv2.imread(str(closest_image_path))
@@ -186,15 +186,23 @@ def main():
 
     prepare_images(image_dir=image_dir, cropped_image_dir=cropped_image_dir)
 
-    mosaic_image = process_images_for_mosaic(
-        cropped_image_dir=cropped_image_dir, source_image_dir=source_image_dir
+    glob = (
+        list(source_image_dir.glob("*.png"))
+        + list(source_image_dir.glob("*.jpg"))
+        + list(source_image_dir.glob("*.tif"))
     )
+    for image_path in glob:
+        mosaic_image = create_mosaic(
+            cropped_image_dir=cropped_image_dir,
+            source_image_path=image_path,
+        )
 
-    todays_datetime = datetime.today().strftime("%Y%m%dT%H%M%S")
-    cv2.imwrite(str(output_dir / f"{todays_datetime}_{MOSAIC_IMAGE_NAME}"), mosaic_image)
-    # cv2.imshow(MOSAIC_IMAGE_NAME, mosaic_image)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+        # Save file
+        todays_datetime = datetime.today().strftime("%Y%m%dT%H%M%S")
+        output_file_path = str(
+            output_dir / f"{todays_datetime}_{image_path.stem}_{MOSAIC_IMAGE_NAME}"
+        )
+        cv2.imwrite(output_file_path, mosaic_image)
 
 
 if __name__ == "__main__":
