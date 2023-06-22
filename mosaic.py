@@ -172,8 +172,10 @@ def create_mosaic(cropped_image_dir: Path, source_image_path: Path):
     with open("times.txt", mode="a") as f:
         f.write(str(delta_time) + "\n")
 
-    logger.info(f"{delta_time} seconds to run image generation.")
-    logger.info("Image finished!")
+    logger.info(
+        f"'{source_image_path.name}' mosaic complete "
+        f" after {round(delta_time, 2):.2f} secs!"
+    )
     return new_image
 
 
