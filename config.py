@@ -18,7 +18,7 @@ MOSAIC_IMAGE_NAME = "mosaic.png"
 
 
 # Target image scale factor
-SCALE_FACTOR: int = 2
+SCALE_FACTOR: int = 5
 
 
 LOGGING_MODE = "INFO"

@@ -1,0 +1,25 @@
+
+[project]
+name = ""
+version = ""
+description = ""
+authors = [
+    {name = "Thomas Arambula III", email = "thomasarambula96@gmail.com"},
+]
+dependencies = [
+    "mypy",
+    "flake8",
+    "numpy",
+    "opencv-python",
+    "pillow",
+    "pylint",
+    "autopep8",
+    "coloredlogs>=15.0.1",
+    "black>=23.3.0",
+]
+requires-python = ">=3.11"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
