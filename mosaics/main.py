@@ -42,6 +42,10 @@ def main(tilesource: str, references: str, tiles: str, output: str):
         output_directory = references_directory.parent / config.DEFAULT_OUTPUT_DIRECTORY
         mosaic.create_necessary_directory(output_directory)
 
+    # Delete all files in the tiles directory.
+    for tile_file in tiles_directory.glob("*"):
+        tile_file.unlink()
+
     tile.prepare_tiles(tilesource=tilesource_directory, tiles_directory=tiles_directory)
     glob = mosaic.glob_directory_images(references_directory)
     mosaic.create_and_write_mosaics(tiles_directory, output_directory, glob)
