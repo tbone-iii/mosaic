@@ -7,21 +7,14 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Tuple, Union
 
 import coloredlogs
+import config
 import cv2
 import numpy as np
-
-from config import (
-    CLUSTER_QUANTITY,
-    LOGGING_MODE,
-    MOSAIC_IMAGE_NAME,
-    PIXEL_RES,
-    SCALE_FACTOR,
-)
-from tiles import crop_to_square, prepare_images
+import tile
 from utils import iterate_all_image_paths
 
 logger = logging.getLogger(__name__)
-coloredlogs.install(level=LOGGING_MODE, logger=logger)
+coloredlogs.install(level=config.LOGGING_MODE, logger=logger)
 
 Vector = Union[Tuple, List]
 
@@ -59,10 +52,10 @@ def find_dominant_color_from_image(image: np.ndarray) -> tuple:
     """Finds the dominant color of an image given a numpy array of BGR colors.
     Returns a tuple of (B, G, R) color.
     """
-    centers, labels = color_clusters(image=image, K=CLUSTER_QUANTITY)
+    centers, labels = color_clusters(image=image, K=config.CLUSTER_QUANTITY)
     counts: Counter = Counter(labels.flatten())
     # BLUE, GREEN, RED
-    dominant_color = tuple(centers[max(counts)])
+    dominant_color = tuple(centers[max(counts)])  # type: ignore
     return dominant_color
 
 
@@ -97,17 +90,19 @@ def image_to_dominant_colors_from_paths(paths: Iterable[Path]) -> Mapping[Path, 
     return dominant_colors
 
 
-def prepare_target_image(path: Path) -> np.ndarray:
+def prepare_source_image(path: Path) -> np.ndarray:
     """Prepares the target image by cropping it into a square and resizing it into
     the nearest (floor) multiple of the sizes of the small thumbnail images.
     """
     image = cv2.imread(str(path))
-    image = crop_to_square(image)
-    logger.debug("Cropped target image to a square.")
-    # Resize the image down to the multiple (GCM) of PIXEL_RES
-    new_length = PIXEL_RES * (image.shape[0] // PIXEL_RES) * SCALE_FACTOR
-    image = cv2.resize(image, (new_length, new_length))
-    logger.debug(f"Resized image to square of {new_length=}, a multiple of {PIXEL_RES=}.")
+    image = tile.crop_to_square(image)
+    logger.debug("Cropped target image to a square")
+
+    image = cv2.resize(image, (config.MOSAIC_RESOLUTION, config.MOSAIC_RESOLUTION))
+    logger.debug(
+        f"Resized image to square of {config.MOSAIC_RESOLUTION=}, "
+        f"a multiple of {config.TILE_RESOLUTION=}"
+    )
     return image
 
 
@@ -134,12 +129,13 @@ def create_mosaic(cropped_image_dir: Path, source_image_path: Path):
     image_to_dominant_color = image_to_dominant_colors_from_paths(prepared_image_paths)
 
     # Grab the first SOURCE image in the given image directory.
-    source_image = prepare_target_image(path=source_image_path)
+    source_image = prepare_source_image(path=source_image_path)
 
     # Going over chunks of an image (a specified grid), average out the color there
     # Determine pixel iteration and boundary.
-    n = source_image.shape[0] // PIXEL_RES
-    pixels = range(0, n * PIXEL_RES, PIXEL_RES)
+    tile_resolution = config.TILE_RESOLUTION
+    n = source_image.shape[0] // tile_resolution
+    pixels = range(0, n * tile_resolution, tile_resolution)
 
     new_image = source_image.copy()
 
@@ -151,7 +147,9 @@ def create_mosaic(cropped_image_dir: Path, source_image_path: Path):
     pixel_y = 0
     for pixel_y in pixels:
         for pixel_x in pixels:
-            sliced = np.s_[pixel_y : pixel_y + PIXEL_RES, pixel_x : pixel_x + PIXEL_RES]
+            sliced = np.s_[
+                pixel_y : pixel_y + tile_resolution, pixel_x : pixel_x + tile_resolution
+            ]
             slices.append(sliced)
 
     for sliced in slices:
@@ -169,43 +167,55 @@ def create_mosaic(cropped_image_dir: Path, source_image_path: Path):
         logger.debug(f"Added subimage '{closest_image_path}' at ({pixel_x}, {pixel_y})")
 
     delta_time = time.perf_counter() - t1
-    with open("times.txt", mode="a") as f:
-        f.write(str(delta_time) + "\n")
 
-    logger.info(
-        f"'{source_image_path.name}' mosaic complete "
-        f" after {round(delta_time, 2):.2f} secs!"
-    )
+    logger.info(f"'{source_image_path.name}' mosaic complete after {delta_time:.2f} secs")
     return new_image
 
 
-def main():
-    # Set directories
-    image_dir = Path("./images/")
-    cropped_image_dir = Path("./cropped/")
-    source_image_dir = Path("./referenceimage/")
-    output_dir = Path("./output")
-
-    prepare_images(image_dir=image_dir, cropped_image_dir=cropped_image_dir)
-
-    glob = (
-        list(source_image_dir.glob("*.png"))
-        + list(source_image_dir.glob("*.jpg"))
-        + list(source_image_dir.glob("*.tif"))
-    )
+def create_and_write_mosaics(
+    tiles_directory: Path, output_directory: Path, glob: list[Path]
+):
     for image_path in glob:
         mosaic_image = create_mosaic(
-            cropped_image_dir=cropped_image_dir,
+            cropped_image_dir=tiles_directory,
             source_image_path=image_path,
         )
 
         # Save file
         todays_datetime = datetime.today().strftime("%Y%m%dT%H%M%S")
         output_file_path = str(
-            output_dir / f"{todays_datetime}_{image_path.stem}_{MOSAIC_IMAGE_NAME}"
+            output_directory
+            / f"{todays_datetime}_{image_path.stem}_{config.MOSAIC_IMAGE_SUFFIX}"
         )
         cv2.imwrite(output_file_path, mosaic_image)
 
+        # Logging
+        logger.info(f"Saved mosaic image to '{output_file_path}'")
 
-if __name__ == "__main__":
-    main()
+
+def create_necessary_directory(directory: Path):
+    """Creates a directory if it does not exist.
+
+    Args:
+        directory (Path): The directory to create.
+    """
+    if not directory.exists():
+        logger.info(f"Creating directory '{directory}'")
+        directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def glob_directory_images(directory: Path) -> list[Path]:
+    """Returns a list of all the image paths in a directory.
+
+    Args:
+        directory (Path): The directory to glob.
+
+    Returns:
+        list[Path]: A list of all the image paths in a directory.
+    """
+    return (
+        list(directory.glob("*.png"))
+        + list(directory.glob("*.jpg"))
+        + list(directory.glob("*.tif"))
+    )

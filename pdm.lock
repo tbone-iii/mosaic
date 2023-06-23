@@ -216,7 +216,7 @@ summary = "Module for decorators, wrappers and monkey patching."
 lock_version = "4.2"
 cross_platform = true
 groups = ["default"]
-content_hash = "sha256:ef6e81528aa66c93397af02fced6060ff0b76868260e18a229328084ea3af048"
+content_hash = "sha256:a89ce5c86cba0abf346f3a1502dbfb6f3c58e2888a428b51eb5513b834268786"
 
 [metadata.files]
 "astroid 2.15.5" = [

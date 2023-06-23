@@ -1,9 +1,6 @@
 __pycache__
 .mypy_cache/3.8
 .vscode
-cropped
-images
-referenceimage
-output
 .pdm-python
-times.txt
+
+personal_test
