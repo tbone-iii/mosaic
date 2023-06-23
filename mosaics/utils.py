@@ -25,7 +25,7 @@ def iterate_all_image_paths(directory: Union[Path, str]) -> Iterator:
         pattern = "*" + image_format
         image_paths.extend(directory.glob(pattern))
 
-    logger.info(f"Image paths have been loaded from: '{directory.absolute()}'")
+    logger.info(f"Image paths have been loaded from '{directory.absolute()}'")
 
     return iter(image_paths)
 

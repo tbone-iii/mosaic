@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from collections import Counter
 from datetime import datetime
@@ -172,6 +173,32 @@ def create_mosaic(cropped_image_dir: Path, source_image_path: Path):
     return new_image
 
 
+def shrink_image_file_size(image: np.ndarray, output_file_path: str) -> None:
+    """Shrinks the file size of the image by reducing the JPEG quality.
+
+    Args:
+        image (np.ndarray): Image to shrink the file size of.
+        output_file_path (str): Path to the output file.
+    """
+    jpeg_quality = config.BASE_JPEG_QUALITY
+    file_size = os.path.getsize(output_file_path)
+    while file_size > config.MAXIMUM_FILE_SIZE:
+        jpeg_quality -= 20
+        jpeg_quality = max(jpeg_quality, config.MINIMUM_JPEG_QUALITY)
+        logger.info(f"Reducing JPEG quality to {jpeg_quality}")
+
+        cv2.imwrite(
+            output_file_path,
+            image,
+            [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality],
+        )
+
+        if jpeg_quality == config.MINIMUM_JPEG_QUALITY:
+            return
+
+        file_size = os.path.getsize(output_file_path)
+
+
 def create_and_write_mosaics(
     tiles_directory: Path, output_directory: Path, glob: list[Path]
 ):
@@ -187,7 +214,13 @@ def create_and_write_mosaics(
             output_directory
             / f"{todays_datetime}_{image_path.stem}_{config.MOSAIC_IMAGE_SUFFIX}"
         )
-        cv2.imwrite(output_file_path, mosaic_image)
+
+        cv2.imwrite(
+            output_file_path,
+            mosaic_image,
+            [cv2.IMWRITE_JPEG_QUALITY, config.BASE_JPEG_QUALITY],
+        )
+        shrink_image_file_size(mosaic_image, output_file_path)
 
         # Logging
         logger.info(f"Saved mosaic image to '{output_file_path}'")
