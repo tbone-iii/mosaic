@@ -4,3 +4,4 @@ __pycache__
 .pdm-python
 
 personal_test
+*.code-workspace

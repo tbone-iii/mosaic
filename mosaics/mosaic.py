@@ -185,7 +185,7 @@ def shrink_image_file_size(image: np.ndarray, output_file_path: str) -> None:
     while file_size > config.MAXIMUM_FILE_SIZE:
         jpeg_quality -= 20
         jpeg_quality = max(jpeg_quality, config.MINIMUM_JPEG_QUALITY)
-        logger.info(f"Reducing JPEG quality to {jpeg_quality}")
+        logger.info(f"Reducing JPEG quality to {jpeg_quality}%")
 
         cv2.imwrite(
             output_file_path,

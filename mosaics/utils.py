@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 coloredlogs.install(level=LOGGING_MODE, logger=logger)
 
 
-# Gather all images in a directory.
 def iterate_all_image_paths(directory: Union[Path, str]) -> Iterator:
     """Returns a list of all paths in a directory as pathlib `Path` instances."""
     if isinstance(directory, str):
